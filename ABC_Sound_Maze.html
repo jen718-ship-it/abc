@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABC Sound Maze</title>
+<style>
+:root{
+  --ink:#24212b;
+  --pink:#ff6fae;
+  --yellow:#ffd84d;
+  --blue:#55c9f4;
+  --green:#72d572;
+  --orange:#ff9d42;
+  --purple:#a884ff;
+  --cream:#fffaf0;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:"Trebuchet MS","Arial Rounded MT Bold",Arial,sans-serif;
+  background:linear-gradient(135deg,#fff4b8 0%,#d9f7ff 48%,#fbdcff 100%);
+  color:var(--ink);
+  min-height:100vh;
+}
+header{
+  text-align:center;
+  padding:18px 16px 10px;
+}
+h1{
+  margin:0;
+  font-size:clamp(30px,5vw,52px);
+  color:#ff5d91;
+  text-shadow:3px 3px 0 #fff;
+}
+.subtitle{
+  margin:5px 0 0;
+  font-size:clamp(15px,2vw,21px);
+  font-weight:700;
+}
+.game{
+  width:min(1180px,96vw);
+  margin:0 auto 24px;
+}
+.topbar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  background:#fff;
+  border:4px solid var(--ink);
+  border-radius:22px;
+  padding:11px 15px;
+  box-shadow:0 6px 0 rgba(36,33,43,.18);
+}
+.pill{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:18px;
+  font-weight:900;
+}
+.lives{letter-spacing:2px}
+.life{font-size:25px}
+.life.lost{filter:grayscale(1);opacity:.25}
+.soundBtn,.resetBtn{
+  border:3px solid var(--ink);
+  border-radius:16px;
+  padding:9px 15px;
+  font:inherit;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 4px 0 var(--ink);
+  transition:.12s transform,.12s box-shadow;
+}
+.soundBtn{background:var(--yellow)}
+.resetBtn{background:#fff}
+.soundBtn:active,.resetBtn:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink)}
+.maze{
+  position:relative;
+  margin-top:14px;
+  background:#baf2b1;
+  border:5px solid var(--ink);
+  border-radius:28px;
+  overflow:hidden;
+  min-height:590px;
+  box-shadow:0 8px 0 rgba(36,33,43,.18);
+}
+.maze:before{
+  content:"";
+  position:absolute;inset:12px;
+  border:3px dashed rgba(36,33,43,.18);
+  border-radius:20px;
+  pointer-events:none;
+}
+.path{
+  position:absolute;
+  background:#fffdf4;
+  border:6px solid var(--ink);
+  border-radius:42px;
+  box-shadow:inset 0 0 0 6px #ffe88a;
+}
+.start{
+  left:18px;top:245px;width:150px;height:105px;
+  display:flex;align-items:center;justify-content:center;
+  z-index:3;
+}
+.start span{
+  font-size:23px;font-weight:1000;text-align:center;
+}
+.goal{
+  right:18px;top:220px;width:145px;height:145px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  z-index:3;
+  background:#fff;
+}
+.goal span{font-size:25px;font-weight:1000;text-align:center}
+.route{
+  position:absolute;
+  left:145px;right:125px;top:272px;height:54px;
+  background:#fffdf4;border:6px solid var(--ink);
+  border-radius:30px;
+}
+.route:after{
+  content:"➜";
+  position:absolute;right:-10px;top:-26px;
+  font-size:65px;line-height:1;
+  color:#ff8a32;
+  -webkit-text-stroke:3px var(--ink);
+}
+.choice{
+  position:absolute;
+  width:145px;height:205px;
+  top:55px;
+  border:5px solid var(--ink);
+  border-radius:24px;
+  background:#fff;
+  padding:9px;
+  cursor:pointer;
+  box-shadow:0 7px 0 rgba(36,33,43,.22);
+  transition:.12s transform,.12s box-shadow,.12s opacity;
+  z-index:5;
+}
+.choice:hover{transform:translateY(-6px) rotate(-1deg)}
+.choice:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(36,33,43,.22)}
+.choice img{
+  width:100%;height:145px;object-fit:contain;display:block;
+}
+.choice .label{
+  font-size:20px;font-weight:1000;text-align:center;margin-top:3px;
+}
+.choice:nth-of-type(1){left:190px;background:#fff1a8}
+.choice:nth-of-type(2){left:50%;transform:translateX(-50%);background:#c9f3ff}
+.choice:nth-of-type(3){right:165px;background:#ffd0e4}
+.choice:nth-of-type(2):hover{transform:translateX(-50%) translateY(-6px) rotate(1deg)}
+.choice.correct{
+  animation:correct .45s ease;
+}
+.choice.wrong{
+  animation:shake .4s ease;
+}
+@keyframes correct{
+  50%{transform:scale(1.08) rotate(2deg)}
+}
+@keyframes shake{
+  20%,60%{transform:translateX(-9px)}
+  40%,80%{transform:translateX(9px)}
+}
+.overlay{
+  position:absolute;inset:0;background:rgba(255,255,255,.94);
+  display:none;align-items:center;justify-content:center;
+  z-index:20;padding:25px;
+}
+.overlay.show{display:flex}
+.card{
+  width:min(610px,92%);
+  background:#fff;border:6px solid var(--ink);
+  border-radius:32px;padding:30px;text-align:center;
+  box-shadow:0 10px 0 rgba(36,33,43,.2);
+}
+.card h2{font-size:42px;margin:0 0 10px;color:#ff5d91}
+.card p{font-size:21px;font-weight:700;line-height:1.4}
+.bigbtn{
+  border:4px solid var(--ink);border-radius:20px;
+  background:var(--yellow);padding:13px 24px;
+  font:inherit;font-size:22px;font-weight:1000;cursor:pointer;
+  box-shadow:0 6px 0 var(--ink);
+}
+.bigbtn:active{transform:translateY(5px);box-shadow:0 1px 0 var(--ink)}
+.progress{
+  margin:13px 0 0;
+  background:#fff;border:4px solid var(--ink);
+  border-radius:18px;padding:10px 13px;
+  font-weight:900;font-size:17px;
+}
+.progressbar{
+  height:14px;background:#eee;border:2px solid var(--ink);
+  border-radius:10px;overflow:hidden;margin-top:7px;
+}
+.progressbar > div{height:100%;width:0;background:linear-gradient(90deg,#ff6fae,#ffd84d,#72d572);transition:.3s}
+.note{text-align:center;font-weight:800;margin:10px 0 0;font-size:14px}
+@media(max-width:800px){
+  .maze{min-height:720px}
+  .start{left:14px;top:450px}
+  .goal{right:14px;top:440px}
+  .route{left:125px;right:105px;top:490px}
+  .choice{width:28%;height:245px;top:50px}
+  .choice img{height:180px}
+  .choice:nth-of-type(1){left:4%}
+  .choice:nth-of-type(2){left:50%}
+  .choice:nth-of-type(3){right:4%}
+}
+@media(max-width:520px){
+  .choice{height:205px}
+  .choice img{height:140px}
+  .choice .label{font-size:16px}
+  .start{width:105px;height:90px}.goal{width:105px;height:105px}
+  .start span,.goal span{font-size:17px}
+  .route{left:95px;right:90px}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌈 ABC Sound Maze 🧩</h1>
+  <p class="subtitle">Listen carefully → choose the matching picture → find your way out!</p>
+</header>
+
+<main class="game">
+  <div class="topbar">
+    <div class="pill">🔊 <span id="roundText">Listen!</span></div>
+    <div class="pill lives" id="lives">❤️ ❤️ ❤️</div>
+    <button class="soundBtn" id="playSound">▶ Play Sound</button>
+    <button class="resetBtn" id="restart">↻ Start Over</button>
+  </div>
+
+  <div class="progress">
+    Vocabulary & sounds found: <span id="score">0</span> / 9
+    <div class="progressbar"><div id="bar"></div></div>
+  </div>
+
+  <section class="maze" id="maze">
+    <div class="path start"><span>🚪<br>START</span></div>
+    <div class="route"></div>
+    <div class="path goal"><span>🏆<br>EXIT!</span></div>
+
+    <button class="choice" data-index="0"><img id="img0" alt=""><div class="label" id="lab0"></div></button>
+    <button class="choice" data-index="1"><img id="img1" alt=""><div class="label" id="lab1"></div></button>
+    <button class="choice" data-index="2"><img id="img2" alt=""><div class="label" id="lab2"></div></button>
+
+    <div class="overlay" id="overlay">
+      <div class="card">
+        <h2 id="overlayTitle">Great job! 🎉</h2>
+        <p id="overlayText"></p>
+        <button class="bigbtn" id="overlayBtn">Continue</button>
+      </div>
+    </div>
+  </section>
+
+  <p class="note">💡 Click <b>Play Sound</b> whenever you need to hear the sound again.</p>
+</main>
+
+<script>
+const ITEMS = [
+  {id:"A", label:"A a", image:"Aa.png", sound:"a sound.mp3", kind:"letter"},
+  {id:"ant", label:"ant", image:"ant.png", sound:"ant.mp3", kind:"word"},
+  {id:"apple", label:"apple", image:"apple.png", sound:"apple.mp3", kind:"word"},
+  {id:"B", label:"B b", image:"Bb.png", sound:"b sound.mp3", kind:"letter"},
+  {id:"bag", label:"bag", image:"bag(2).png", sound:"bag.mp3", kind:"word"},
+  {id:"boy", label:"boy", image:"boy.png", sound:"boy.mp3", kind:"word"},
+  {id:"C", label:"C c", image:"Cc.png", sound:"c sound.mp3", kind:"letter"},
+  {id:"cat", label:"cat", image:"cat.png", sound:"cat.mp3", kind:"word"},
+  {id:"cup", label:"cup", image:"cup.png", sound:"cup.mp3", kind:"word"}
+];
+
+let remaining = [...ITEMS];
+let current = null;
+let lives = 3;
+let found = new Set();
+let audio = null;
+
+const $ = id => document.getElementById(id);
+const choices = [...document.querySelectorAll(".choice")];
+
+function playCurrent(){
+  if(!current) return;
+  if(audio){ audio.pause(); audio.currentTime=0; }
+  audio = new Audio(current.sound);
+  audio.play().catch(()=>{});
+}
+
+function shuffle(arr){
+  return [...arr].sort(()=>Math.random()-.5);
+}
+
+function updateLives(){
+  $("lives").innerHTML = [0,1,2].map(i =>
+    `<span class="life ${i>=lives?"lost":""}">${i<lives?"❤️":"🖤"}</span>`
+  ).join(" ");
+}
+
+function updateProgress(){
+  $("score").textContent = found.size;
+  $("bar").style.width = `${found.size/ITEMS.length*100}%`;
+}
+
+function setChoices(){
+  const correct = current;
+  // Always provide exactly three pathways: the correct answer plus two distractors.
+  const distractors = shuffle(ITEMS.filter(x=>x.id!==correct.id && !found.has(x.id))).slice(0,2);
+  let pool = shuffle([correct,...distractors]);
+
+  // If the remaining pool gets small, use already-found items as distractors.
+  if(pool.length < 3){
+    const extras = shuffle(ITEMS.filter(x=>x.id!==correct.id && !pool.some(p=>p.id===x.id))).slice(0,3-pool.length);
+    pool = shuffle([...pool,...extras]);
+  }
+
+  choices.forEach((btn,i)=>{
+    const item=pool[i];
+    btn.dataset.id=item.id;
+    btn.classList.remove("correct","wrong");
+    btn.querySelector("img").src=item.image;
+    btn.querySelector("img").alt=item.label;
+    btn.querySelector(".label").textContent=item.label;
+    btn.disabled=false;
+  });
+}
+
+function nextRound(){
+  if(remaining.length===0){
+    finish(true);
+    return;
+  }
+  current = remaining[Math.floor(Math.random()*remaining.length)];
+  $("roundText").textContent = `Find: ${current.kind==="letter" ? "the letter sound" : "the word"}`;
+  setChoices();
+  setTimeout(playCurrent,250);
+}
+
+function finish(won){
+  $("overlay").classList.add("show");
+  if(won){
+    $("overlayTitle").textContent="You escaped! 🏆🎉";
+    $("overlayText").textContent="Amazing! You found all 9 sounds and pictures: Aa, ant, apple, Bb, bag, boy, Cc, cat, and cup.";
+    $("overlayBtn").textContent="Play Again";
+  }else{
+    $("overlayTitle").textContent="Try the maze again! 💪";
+    $("overlayText").textContent="You used all 3 lives. That's okay—listen carefully and try again!";
+    $("overlayBtn").textContent="Repeat Maze";
+  }
+}
+
+function resetGame(){
+  if(audio){audio.pause();audio.currentTime=0;}
+  remaining=[...ITEMS];
+  found.clear();
+  lives=3;
+  updateLives();updateProgress();
+  $("overlay").classList.remove("show");
+  nextRound();
+}
+
+choices.forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    if(!current || btn.disabled) return;
+    const chosen=btn.dataset.id;
+    if(chosen===current.id){
+      btn.classList.add("correct");
+      btn.disabled=true;
+      found.add(current.id);
+      remaining=remaining.filter(x=>x.id!==current.id);
+      updateProgress();
+      $("roundText").textContent="Correct! ⭐";
+      setTimeout(()=>{
+        if(remaining.length===0) finish(true);
+        else nextRound();
+      },550);
+    }else{
+      lives--;
+      updateLives();
+      btn.classList.add("wrong");
+      $("roundText").textContent="Oops! Try again!";
+      setTimeout(()=>btn.classList.remove("wrong"),450);
+      if(lives<=0){
+        choices.forEach(c=>c.disabled=true);
+        setTimeout(()=>finish(false),500);
+      }else{
+        setTimeout(playCurrent,450);
+      }
+    }
+  });
+});
+
+$("playSound").addEventListener("click",playCurrent);
+$("restart").addEventListener("click",resetGame);
+$("overlayBtn").addEventListener("click",resetGame);
+
+updateLives();
+updateProgress();
+nextRound();
+</script>
+</body>
+</html>

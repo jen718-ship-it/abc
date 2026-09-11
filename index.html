@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABC Sound Maze</title>
+<style>
+@font-face {
+  font-family: 'Comic Sans MS';
+  src: url('comic-sans-ms.ttf') format('truetype');
+}
+
+:root {
+  --ink: #24212b;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: 'Comic Sans MS', "Chalkboard SE", "Comic Neue", sans-serif !important;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Comic Sans MS', "Chalkboard SE", "Comic Neue", sans-serif;
+  background: url("game background.png") no-repeat center center fixed;
+  background-size: cover;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.game {
+  width: min(1000px, 96vw);
+  margin: 0 auto;
+}
+
+/* Header UI: Icons Only (Floating) */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  padding: 10px 0;
+}
+
+.lives {
+  display: flex;
+  gap: 6px;
+}
+.life {
+  font-size: 32px;
+}
+.life.lost {
+  filter: grayscale(1);
+  opacity: 0.25;
+}
+
+.iconBtn {
+  border: 4px solid var(--ink);
+  border-radius: 18px;
+  background: #ffffff;
+  width: 60px;
+  height: 60px;
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--ink);
+  transition: transform 0.1s, box-shadow 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.iconBtn:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+/* Classic Mode Area */
+.maze {
+  position: relative;
+  margin-top: 16px;
+  background: transparent;
+  border: none;
+  padding: 10px 0;
+}
+
+.choices-container {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.choice {
+  width: 220px;
+  height: 220px;
+  border: 5px solid var(--ink);
+  border-radius: 24px;
+  background: #ffffff;
+  padding: 12px;
+  cursor: pointer;
+  box-shadow: 0 7px 0 rgba(36, 33, 43, 0.22);
+  transition: transform 0.12s, box-shadow 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.choice:hover {
+  transform: translateY(-6px);
+}
+.choice:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 rgba(36, 33, 43, 0.22);
+}
+.choice img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+.choice.correct {
+  animation: correct 0.45s ease;
+}
+.choice.wrong {
+  animation: shake 0.4s ease;
+}
+
+@keyframes correct {
+  50% { transform: scale(1.08); }
+}
+@keyframes shake {
+  20%, 60% { transform: translateX(-9px); }
+  40%, 80% { transform: translateX(9px); }
+}
+
+/* Character Track Below Choices */
+.track-container {
+  position: relative;
+  width: 100%;
+  height: 90px;
+  background: #ffffff;
+  border: 4px solid var(--ink);
+  border-radius: 45px;
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  box-shadow: 0 6px 0 rgba(36, 33, 43, 0.15);
+}
+
+.track-line {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.character-node {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 70px;
+  height: 70px;
+  z-index: 3;
+  transition: left 0.4s ease-in-out;
+}
+.character-node img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.finish-node {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 65px;
+  height: 65px;
+  font-size: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+/* Versus Mode Split Screen Styling (Side-by-Side, Upright Landscape) */
+#versusScreen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: row;
+  background: transparent;
+  z-index: 10;
+}
+
+.player-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 15px;
+  position: relative;
+}
+
+.player-zone.p1 {
+  border-right: 4px dashed var(--ink);
+  /* Upright orientation */
+  transform: none;
+}
+
+.vs-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.vs-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: #fff;
+  object-fit: contain;
+}
+
+.vs-score {
+  font-size: 22px;
+  font-weight: bold;
+  color: var(--ink);
+  background: #ffffff;
+  padding: 4px 16px;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+}
+
+/* Landscape Choice Row */
+.vs-choices {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.vs-choice {
+  width: min(120px, 28vw);
+  height: min(120px, 28vw);
+  border: 4px solid var(--ink);
+  border-radius: 20px;
+  background: #ffffff;
+  padding: 8px;
+  cursor: pointer;
+  box-shadow: 0 5px 0 rgba(36, 33, 43, 0.2);
+  transition: transform 0.1s;
+}
+.vs-choice:active {
+  transform: translateY(3px);
+}
+.vs-choice img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.vs-center-bar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.vs-timer {
+  font-size: 26px;
+  font-weight: bold;
+  background: #ffffff;
+  border: 4px solid var(--ink);
+  border-radius: 50%;
+  width: 65px;
+  height: 65px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 0 var(--ink);
+}
+
+/* Overlays */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.96);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 30;
+}
+
+.selection-title {
+  font-size: 32px;
+  font-weight: bold;
+  color: var(--ink);
+  margin: 0 0 10px 0;
+  text-align: center;
+}
+
+.selection-box {
+  display: flex;
+  gap: 30px;
+}
+
+.char-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.char-btn, .mode-btn {
+  width: 160px;
+  height: 160px;
+  border: 5px solid var(--ink);
+  border-radius: 28px;
+  background: #ffffff;
+  cursor: pointer;
+  padding: 10px;
+  box-shadow: 0 8px 0 var(--ink);
+  transition: transform 0.1s, box-shadow 0.1s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: bold;
+}
+.char-btn:hover, .mode-btn:hover {
+  transform: scale(1.05);
+}
+.char-btn:active, .mode-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--ink);
+}
+.char-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.char-label {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--ink);
+}
+
+.countdown-num {
+  font-size: 110px;
+  font-weight: bold;
+  color: var(--ink);
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.2); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.end-media {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.vs-result-text {
+  font-size: 36px;
+  font-weight: bold;
+  color: var(--ink);
+  text-align: center;
+  white-space: pre-line;
+}
+
+@media(max-width: 650px) {
+  .choice {
+    width: 30%;
+    height: 130px;
+  }
+  .vs-choice {
+    width: 80px;
+    height: 80px;
+  }
+  .char-btn, .mode-btn {
+    width: 120px;
+    height: 120px;
+    font-size: 20px;
+  }
+}
+</style>
+</head>
+<body>
+
+<main class="game">
+  <!-- Classic Header Topbar -->
+  <div class="topbar" id="classicTopbar">
+    <div class="lives" id="lives">❤️ ❤️ ❤️</div>
+    <button class="iconBtn" id="playSound">🔊</button>
+    <button class="iconBtn" id="restart">↻</button>
+  </div>
+
+  <!-- Classic Mode Main Section -->
+  <section class="maze" id="maze">
+    <div class="choices-container">
+      <button class="choice" data-index="0"><img id="img0" alt=""></button>
+      <button class="choice" data-index="1"><img id="img1" alt=""></button>
+      <button class="choice" data-index="2"><img id="img2" alt=""></button>
+    </div>
+
+    <div class="track-container" id="trackContainer">
+      <div class="track-line"></div>
+      <div class="character-node" id="playerNode">
+        <img id="playerImg" src="" alt="">
+      </div>
+      <div class="finish-node">🏆</div>
+    </div>
+  </section>
+</main>
+
+<!-- Versus Mode Screen (Side-by-Side Landscape Format) -->
+<div id="versusScreen" style="display: none;">
+  <div class="vs-center-bar">
+    <button class="iconBtn" id="vsPlaySound">🔊</button>
+    <div class="vs-timer" id="vsTimer">10</div>
+    <button class="iconBtn" id="vsRestart">↻</button>
+  </div>
+
+  <!-- Player 1 Zone (Left Half, Upright) -->
+  <div class="player-zone p1">
+    <div class="vs-header">
+      <img id="p1Avatar" class="vs-avatar" src="boy character.png" alt="">
+      <div class="vs-score" id="p1Score">Score: 0</div>
+    </div>
+    <div class="vs-choices" id="p1Choices">
+      <button class="vs-choice" data-p="1" data-i="0"><img></button>
+      <button class="vs-choice" data-p="1" data-i="1"><img></button>
+      <button class="vs-choice" data-p="1" data-i="2"><img></button>
+    </div>
+  </div>
+
+  <!-- Player 2 Zone (Right Half, Upright) -->
+  <div class="player-zone p2">
+    <div class="vs-header">
+      <img id="p2Avatar" class="vs-avatar" src="girl character.png" alt="">
+      <div class="vs-score" id="p2Score">Score: 0</div>
+    </div>
+    <div class="vs-choices" id="p2Choices">
+      <button class="vs-choice" data-p="2" data-i="0"><img></button>
+      <button class="vs-choice" data-p="2" data-i="1"><img></button>
+      <button class="vs-choice" data-p="2" data-i="2"><img></button>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay 1: Mode Selection -->
+<div class="overlay" id="modeOverlay">
+  <h2 class="selection-title">Select Game Mode</h2>
+  <div class="selection-box">
+    <button class="mode-btn" id="selectClassic">🎮<br>Classic</button>
+    <button class="mode-btn" id="selectVersus">⚔️<br>Versus</button>
+  </div>
+</div>
+
+<!-- Overlay 2: Classic Character Selection -->
+<div class="overlay" id="charOverlay" style="display: none;">
+  <h2 class="selection-title">Select Character</h2>
+  <div class="selection-box">
+    <div class="char-card">
+      <button class="char-btn" id="selectBoy">
+        <img src="boy character.png" alt="Boy">
+      </button>
+      <span class="char-label">boy</span>
+    </div>
+    <div class="char-card">
+      <button class="char-btn" id="selectGirl">
+        <img src="girl character.png" alt="Girl">
+      </button>
+      <span class="char-label">girl</span>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay 3: Versus Character Selection (Individual for P1 & P2) -->
+<div class="overlay" id="vsCharOverlay" style="display: none;">
+  <h2 class="selection-title" id="vsCharTitle">Player 1: Select Character</h2>
+  <div class="selection-box">
+    <div class="char-card">
+      <button class="char-btn" id="vsSelectBoy">
+        <img src="boy character.png" alt="Boy">
+      </button>
+      <span class="char-label">boy</span>
+    </div>
+    <div class="char-card">
+      <button class="char-btn" id="vsSelectGirl">
+        <img src="girl character.png" alt="Girl">
+      </button>
+      <span class="char-label">girl</span>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay 4: 5 to 1 Pre-Round Countdown -->
+<div class="overlay" id="countdownOverlay" style="display: none;">
+  <div class="countdown-num" id="countdownNum">5</div>
+</div>
+
+<!-- Overlay 5: Win/Loss End Display -->
+<div class="overlay" id="endOverlay" style="display: none;">
+  <div class="vs-result-text" id="vsResultText" style="display:none;"></div>
+  <video id="winVideo" class="end-media" autoplay loop muted playsinline style="display:none;">
+    <source src="Very good.mp4" type="video/mp4">
+  </video>
+  <button class="iconBtn" id="endRestart" style="width:90px; height:90px; font-size:48px;">↻</button>
+</div>
+
+<script>
+const ITEMS = [
+  {id:"A", image:"Aa.png", sound:"a sound.mp3"},
+  {id:"ant", image:"ant.png", sound:"ant.mp3"},
+  {id:"apple", image:"apple.png", sound:"apple.mp3"},
+  {id:"B", image:"Bb.png", sound:"b sound.mp3"},
+  {id:"bag", image:"bag.png", sound:"bag.mp3"},
+  {id:"boy", image:"boy.png", sound:"boy.mp3"},
+  {id:"C", image:"Cc.png", sound:"c sound.mp3"},
+  {id:"cat", image:"cat.png", sound:"cat.mp3"},
+  {id:"cup", image:"cup.png", sound:"cup.mp3"}
+];
+
+let currentGameMode = "classic"; 
+let remaining = [...ITEMS];
+let current = null;
+let lives = 3;
+let found = new Set();
+let audio = null;
+let selectedCharacter = "boy character.png";
+
+/* Versus Mode Player Variables */
+let vsP1Char = "boy character.png";
+let vsP2Char = "girl character.png";
+let vsP1Score = 0;
+let vsP2Score = 0;
+let vsTimerVal = 10;
+let vsTimerInterval = null;
+let vsRoundStartTime = 0;
+let vsP1Answered = false;
+let vsP2Answered = false;
+let vsSelectingPlayer = 1;
+
+// Synthesized Sound Effects via Web Audio API
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, type, duration, startOffset = 0) {
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime + startOffset);
+  gain.gain.setValueAtTime(0.15, audioCtx.currentTime + startOffset);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + startOffset + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(audioCtx.currentTime + startOffset);
+  osc.stop(audioCtx.currentTime + startOffset + duration);
+}
+
+function playClickSound() { playTone(600, 'sine', 0.05); }
+function playCorrectSound() {
+  playTone(523.25, 'triangle', 0.1, 0);
+  playTone(659.25, 'triangle', 0.1, 0.08);
+  playTone(783.99, 'triangle', 0.2, 0.16);
+}
+function playWrongSound() {
+  playTone(220, 'sawtooth', 0.15, 0);
+  playTone(180, 'sawtooth', 0.25, 0.12);
+}
+function playWinChime() {
+  const notes = [523.25, 659.25, 783.99, 1046.50];
+  notes.forEach((freq, idx) => playTone(freq, 'sine', 0.25, idx * 0.1));
+}
+
+const $ = id => document.getElementById(id);
+const choices = [...document.querySelectorAll(".choice")];
+
+function playCurrent(){
+  if(!current) return;
+  if(audio){ audio.pause(); audio.currentTime = 0; }
+  audio = new Audio(current.sound);
+  audio.play().catch(()=>{});
+}
+
+function shuffle(arr){
+  return [...arr].sort(() => Math.random() - 0.5);
+}
+
+/* CLASSIC MODE LOGIC */
+function updateLives(){
+  $("lives").innerHTML = [0,1,2].map(i =>
+    `<span class="life ${i >= lives ? "lost" : ""}">${i < lives ? "❤️" : "🖤"}</span>`
+  ).join(" ");
+}
+
+function updateCharacterPosition(){
+  const containerWidth = $("trackContainer").clientWidth;
+  const startX = 20;
+  const endX = containerWidth - 90;
+  const progress = found.size / ITEMS.length;
+  const currentX = startX + (endX - startX) * progress;
+  $("playerNode").style.left = `${currentX}px`;
+}
+
+function setClassicChoices(){
+  const correct = current;
+  const distractors = shuffle(ITEMS.filter(x => x.id !== correct.id && !found.has(x.id))).slice(0, 2);
+  let pool = shuffle([correct, ...distractors]);
+
+  if(pool.length < 3){
+    const extras = shuffle(ITEMS.filter(x => x.id !== correct.id && !pool.some(p => p.id === x.id))).slice(0, 3 - pool.length);
+    pool = shuffle([...pool, ...extras]);
+  }
+
+  choices.forEach((btn, i) => {
+    const item = pool[i];
+    btn.dataset.id = item.id;
+    btn.classList.remove("correct", "wrong");
+    btn.querySelector("img").src = item.image;
+    btn.disabled = false;
+  });
+}
+
+function nextClassicRound(){
+  if(remaining.length === 0){
+    finish(true);
+    return;
+  }
+  current = remaining[Math.floor(Math.random() * remaining.length)];
+  setClassicChoices();
+  setTimeout(playCurrent, 300);
+}
+
+/* PRE-GAME COUNTDOWN (5 to 1) */
+function startPreGameCountdown(callback) {
+  $("countdownOverlay").style.display = "flex";
+  let count = 5;
+  $("countdownNum").textContent = count;
+  playTone(440, 'sine', 0.1);
+
+  const timer = setInterval(() => {
+    count--;
+    if (count > 0) {
+      $("countdownNum").textContent = count;
+      playTone(440, 'sine', 0.1);
+    } else if (count === 0) {
+      $("countdownNum").textContent = "GO!";
+      playTone(880, 'sine', 0.2);
+    } else {
+      clearInterval(timer);
+      $("countdownOverlay").style.display = "none";
+      callback();
+    }
+  }, 1000);
+}
+
+/* VERSUS MODE LOGIC */
+function startVersusRound(){
+  if(remaining.length === 0){
+    finishVersus();
+    return;
+  }
+  clearInterval(vsTimerInterval);
+  vsP1Answered = false;
+  vsP2Answered = false;
+  
+  current = remaining[Math.floor(Math.random() * remaining.length)];
+  
+  setupVsPlayerChoices(1);
+  setupVsPlayerChoices(2);
+
+  vsTimerVal = 10;
+  $("vsTimer").textContent = vsTimerVal;
+  vsRoundStartTime = Date.now();
+
+  vsTimerInterval = setInterval(() => {
+    vsTimerVal--;
+    $("vsTimer").textContent = vsTimerVal;
+    if(vsTimerVal <= 0){
+      clearInterval(vsTimerInterval);
+      remaining = remaining.filter(x => x.id !== current.id);
+      setTimeout(startVersusRound, 800);
+    }
+  }, 1000);
+
+  setTimeout(playCurrent, 200);
+}
+
+function setupVsPlayerChoices(playerNum){
+  const distractors = shuffle(ITEMS.filter(x => x.id !== current.id)).slice(0, 2);
+  const pool = shuffle([current, ...distractors]);
+  const btnContainer = playerNum === 1 ? $("p1Choices") : $("p2Choices");
+  const btns = btnContainer.querySelectorAll(".vs-choice");
+
+  btns.forEach((btn, i) => {
+    btn.dataset.id = pool[i].id;
+    btn.querySelector("img").src = pool[i].image;
+    btn.disabled = false;
+    btn.style.opacity = "1";
+  });
+}
+
+function calculateSpeedScore(timeTakenSeconds){
+  if(timeTakenSeconds <= 2) return 5;
+  if(timeTakenSeconds <= 4) return 4;
+  if(timeTakenSeconds <= 6) return 3;
+  if(timeTakenSeconds <= 8) return 2;
+  return 1;
+}
+
+function handleVsChoice(player, btn){
+  if((player === 1 && vsP1Answered) || (player === 2 && vsP2Answered)) return;
+  
+  const chosenId = btn.dataset.id;
+  const timeTaken = (Date.now() - vsRoundStartTime) / 1000;
+  
+  if(player === 1) vsP1Answered = true;
+  if(player === 2) vsP2Answered = true;
+  
+  btn.disabled = true;
+
+  if(chosenId === current.id){
+    playCorrectSound();
+    const pts = calculateSpeedScore(timeTaken);
+    if(player === 1){
+      vsP1Score += pts;
+      $("p1Score").textContent = `Score: ${vsP1Score}`;
+    } else {
+      vsP2Score += pts;
+      $("p2Score").textContent = `Score: ${vsP2Score}`;
+    }
+  } else {
+    playWrongSound();
+    btn.style.opacity = "0.4";
+  }
+
+  if(vsP1Answered && vsP2Answered){
+    clearInterval(vsTimerInterval);
+    remaining = remaining.filter(x => x.id !== current.id);
+    setTimeout(startVersusRound, 1000);
+  }
+}
+
+function finishVersus(){
+  clearInterval(vsTimerInterval);
+  $("endOverlay").style.display = "flex";
+  $("vsResultText").style.display = "block";
+  $("winVideo").style.display = "none";
+  playWinChime();
+
+  if(vsP1Score > vsP2Score){
+    $("vsResultText").textContent = `Player 1 Wins! 🎉\n${vsP1Score} vs ${vsP2Score}`;
+  } else if(vsP2Score > vsP1Score){
+    $("vsResultText").textContent = `Player 2 Wins! 🎉\n${vsP2Score} vs ${vsP1Score}`;
+  } else {
+    $("vsResultText").textContent = `It's a Tie! 🤝\n${vsP1Score} - ${vsP2Score}`;
+  }
+}
+
+function finish(won){
+  $("endOverlay").style.display = "flex";
+  $("vsResultText").style.display = "none";
+  if(won) {
+    playWinChime();
+    const video = $("winVideo");
+    video.style.display = "block";
+    video.currentTime = 0;
+    video.muted = false;
+    video.play().catch(() => {
+      video.muted = true;
+      video.play();
+    });
+  } else {
+    $("winVideo").style.display = "none";
+  }
+}
+
+function resetGame(){
+  if(audio){ audio.pause(); audio.currentTime = 0; }
+  $("winVideo").pause();
+  $("winVideo").style.display = "none";
+  
+  remaining = [...ITEMS];
+  found.clear();
+  lives = 3;
+  updateLives();
+  updateCharacterPosition();
+  $("endOverlay").style.display = "none";
+  startPreGameCountdown(nextClassicRound);
+}
+
+function resetVersusGame(){
+  if(audio){ audio.pause(); audio.currentTime = 0; }
+  remaining = [...ITEMS];
+  vsP1Score = 0;
+  vsP2Score = 0;
+  $("p1Score").textContent = "Score: 0";
+  $("p2Score").textContent = "Score: 0";
+  $("endOverlay").style.display = "none";
+  startPreGameCountdown(startVersusRound);
+}
+
+/* Event Listeners */
+choices.forEach(btn => {
+  btn.addEventListener("click", () => {
+    if(!current || btn.disabled) return;
+    const chosen = btn.dataset.id;
+    if(chosen === current.id){
+      playCorrectSound();
+      btn.classList.add("correct");
+      btn.disabled = true;
+      found.add(current.id);
+      remaining = remaining.filter(x => x.id !== current.id);
+      updateCharacterPosition();
+      setTimeout(() => {
+        if(remaining.length === 0) finish(true);
+        else nextClassicRound();
+      }, 550);
+    } else {
+      playWrongSound();
+      lives--;
+      updateLives();
+      btn.classList.add("wrong");
+      setTimeout(() => btn.classList.remove("wrong"), 450);
+      if(lives <= 0){
+        choices.forEach(c => c.disabled = true);
+        setTimeout(() => finish(false), 500);
+      } else {
+        setTimeout(playCurrent, 450);
+      }
+    }
+  });
+});
+
+document.querySelectorAll(".vs-choice").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const player = parseInt(btn.dataset.p);
+    handleVsChoice(player, btn);
+  });
+});
+
+/* Mode Selection Listeners */
+$("selectClassic").addEventListener("click", () => {
+  playClickSound();
+  currentGameMode = "classic";
+  $("modeOverlay").style.display = "none";
+  $("charOverlay").style.display = "flex";
+});
+
+$("selectVersus").addEventListener("click", () => {
+  playClickSound();
+  currentGameMode = "versus";
+  vsSelectingPlayer = 1;
+  $("vsCharTitle").textContent = "Player 1: Select Character";
+  $("modeOverlay").style.display = "none";
+  $("vsCharOverlay").style.display = "flex";
+});
+
+/* Classic Character Selection */
+$("selectBoy").addEventListener("click", () => {
+  playClickSound();
+  selectedCharacter = "boy character.png";
+  $("playerImg").src = selectedCharacter;
+  $("charOverlay").style.display = "none";
+  $("classicTopbar").style.display = "flex";
+  $("maze").style.display = "block";
+  $("versusScreen").style.display = "none";
+  resetGame();
+});
+
+$("selectGirl").addEventListener("click", () => {
+  playClickSound();
+  selectedCharacter = "girl character.png";
+  $("playerImg").src = selectedCharacter;
+  $("charOverlay").style.display = "none";
+  $("classicTopbar").style.display = "flex";
+  $("maze").style.display = "block";
+  $("versusScreen").style.display = "none";
+  resetGame();
+});
+
+/* Versus Character Selection (Sequential for P1 & P2) */
+function selectVsChar(charImg) {
+  playClickSound();
+  if (vsSelectingPlayer === 1) {
+    vsP1Char = charImg;
+    $("p1Avatar").src = vsP1Char;
+    vsSelectingPlayer = 2;
+    $("vsCharTitle").textContent = "Player 2: Select Character";
+  } else {
+    vsP2Char = charImg;
+    $("p2Avatar").src = vsP2Char;
+    $("vsCharOverlay").style.display = "none";
+    $("classicTopbar").style.display = "none";
+    $("maze").style.display = "none";
+    $("versusScreen").style.display = "flex";
+    resetVersusGame();
+  }
+}
+
+$("vsSelectBoy").addEventListener("click", () => selectVsChar("boy character.png"));
+$("vsSelectGirl").addEventListener("click", () => selectVsChar("girl character.png"));
+
+$("playSound").addEventListener("click", () => { playClickSound(); playCurrent(); });
+$("vsPlaySound").addEventListener("click", () => { playClickSound(); playCurrent(); });
+
+$("restart").addEventListener("click", () => {
+  playClickSound();
+  $("modeOverlay").style.display = "flex";
+});
+$("vsRestart").addEventListener("click", () => {
+  playClickSound();
+  clearInterval(vsTimerInterval);
+  $("modeOverlay").style.display = "flex";
+});
+
+$("endRestart").addEventListener("click", () => {
+  playClickSound();
+  $("modeOverlay").style.display = "flex";
+  $("endOverlay").style.display = "none";
+});
+</script>
+</body>
+</html>
